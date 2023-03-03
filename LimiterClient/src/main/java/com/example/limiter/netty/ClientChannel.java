@@ -30,9 +30,12 @@ public class ClientChannel {
         ClientChannel.baseHandler = requestExecuteHandler;
     }
 
+    /**
+     * 发送限流测试，是否允许访问
+     * @return true 允许访问  false 限流
+     */
     public static boolean tryAccess() {
         String methodKey = getMethodKey();
-
         try {
             ClientLimiterResponse response = writeAndResponse(new LimiterInfo(methodKey));
             if (response.getObject()==null){
@@ -54,12 +57,14 @@ public class ClientChannel {
     @SuppressWarnings("unchecked")
     public static <T> T write(Object object) throws ExecutionException, InterruptedException, TimeoutException {
         Assert.notNull(object, "parameter cannot be null");
+        //创建一个future，异步获取响应
         final SettableListenableFuture<ClientLimiterResponse> responseFuture = new SettableListenableFuture<>();
         String reqId = UUID.randomUUID().toString();
         baseHandler.put(reqId,responseFuture);
         ChannelFuture channelFuture = channel.writeAndFlush(new ClientLimiterRequest(object, clientId,reqId));
-        System.out.println("---------");
+        //阻塞等待结果，可以更改为超时
         ClientLimiterResponse response = responseFuture.get();
+        //获取结果后需要处理ClientLimiterRequestExecuteHandler中的Map
         baseHandler.remove(reqId);
         return (T) response;
 //        return (T) responseFuture.get(500, TimeUnit.MILLISECONDS);

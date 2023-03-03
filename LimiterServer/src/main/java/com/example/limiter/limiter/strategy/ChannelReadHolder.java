@@ -7,6 +7,9 @@ import org.springframework.stereotype.Component;
 
 import java.util.Map;
 
+/**
+ * @author feng xud
+ */
 @Component
 public class ChannelReadHolder implements ApplicationContextAware {
     public static final String LIMITER_CONFIG_HANDLER = "LimiterConfig";
@@ -15,6 +18,7 @@ public class ChannelReadHolder implements ApplicationContextAware {
 
     static Map<String, ChannelReadHandlerStrategy> channelReadHandlerStrategyMap;
 
+    @SuppressWarnings("unchecked")
     public static <T> T handle(Object object,String clientId) {
         return (T) channelReadHandlerStrategyMap.get(object.getClass().getSimpleName()).doReadHandle(object,clientId);
     }
@@ -23,23 +27,4 @@ public class ChannelReadHolder implements ApplicationContextAware {
     public void setApplicationContext(ApplicationContext applicationContext) throws BeansException {
         channelReadHandlerStrategyMap = applicationContext.getBeansOfType(ChannelReadHandlerStrategy.class);
     }
-
-
-//    public enum ChannelReadHandlerEnum{
-//
-//        LIMITER_CONFIG_HANDLER(),
-//        LIMITER_HANDLER(),
-//
-//        ;
-//
-//        private String handlerName;
-//
-//        ChannelReadHandlerEnum(String handlerName) {
-//            this.handlerName = handlerName;
-//        }
-//
-//        public String getHandlerName() {
-//            return handlerName;
-//        }
-//    }
 }

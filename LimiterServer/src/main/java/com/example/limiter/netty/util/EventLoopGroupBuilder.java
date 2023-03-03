@@ -18,16 +18,20 @@ import io.netty.channel.socket.nio.NioSocketChannel;
 import io.netty.handler.logging.LogLevel;
 import io.netty.handler.logging.LoggingHandler;
 
+import static com.example.limiter.netty.util.ClientConstant.LINUX;
+
 
 public class EventLoopGroupBuilder {
 
     static String os;
+
     static {
         os = System.getProperty("os.name");
     }
 
     public Group<MultithreadEventLoopGroup, MultithreadEventLoopGroup> build() {
-        if (os != null && os.toLowerCase().startsWith("linux")) {//Linux操作系统 使用epoll
+        //Linux操作系统 使用epoll
+        if (os != null && os.toLowerCase().startsWith(LINUX)) {
             return new Group<>(new EpollEventLoopGroup(1), new EpollEventLoopGroup(10),true);
         } else {
             return new Group<>(new NioEventLoopGroup(1), new NioEventLoopGroup(10),false);
@@ -81,14 +85,14 @@ public class EventLoopGroupBuilder {
 
 
     public class Group<P, C> {
-        private MultithreadEventLoopGroup P;
-        private MultithreadEventLoopGroup C;
+        private MultithreadEventLoopGroup parentEventLoopGroup;
+        private MultithreadEventLoopGroup childEventLoopGroup;
 
         private Class<? extends ServerSocketChannel> channelClass;
 
         public Group(MultithreadEventLoopGroup p, MultithreadEventLoopGroup c,boolean isLinux) {
-            P = p;
-            C = c;
+            parentEventLoopGroup = p;
+            childEventLoopGroup = c;
             if(isLinux){
                 this.channelClass = EpollServerSocketChannel.class;
             }else {
@@ -97,11 +101,11 @@ public class EventLoopGroupBuilder {
         }
 
         public MultithreadEventLoopGroup getP() {
-            return P;
+            return parentEventLoopGroup;
         }
 
         public MultithreadEventLoopGroup getC() {
-            return C;
+            return childEventLoopGroup;
         }
 
         public Class<? extends ServerSocketChannel> getChannelClass() {
