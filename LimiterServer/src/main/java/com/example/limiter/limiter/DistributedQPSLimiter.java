@@ -1,9 +1,7 @@
 package com.example.limiter.limiter;
 
+import com.example.limiter.limiter.counter.Counter;
 import com.example.limiter.netty.remote.LimiterDefinition;
-
-import java.util.concurrent.locks.Condition;
-import java.util.concurrent.locks.ReentrantLock;
 
 /**
  *  * 分布式限流  基于单机实现集群式
@@ -17,9 +15,9 @@ public class DistributedQPSLimiter extends QPSLimiter{
 
 
 
-    public DistributedQPSLimiter(LimiterDefinition definition) {
+    public DistributedQPSLimiter(LimiterDefinition definition, Class<Counter> counterType) {
 
-        super(definition.getQps(),definition.getLimit(),definition.getTime(),1800);
+        super(definition.getQps(),definition.getLimit(),definition.getTime(),1800,counterType);
         this.limiterDefinition = definition;
     }
 }

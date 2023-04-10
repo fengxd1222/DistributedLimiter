@@ -1,12 +1,15 @@
 package com.example.limiter.limiter;
 
+import com.example.limiter.limiter.counter.Counter;
+import com.example.limiter.limiter.counter.CounterFactory;
+import com.example.limiter.limiter.counter.DefaultCounter;
+
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.Arrays;
 import java.util.Map;
 import java.util.TreeMap;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.locks.Condition;
+import java.util.concurrent.atomic.LongAdder;
 import java.util.concurrent.locks.LockSupport;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -20,7 +23,9 @@ public class QPSLimiter extends AbstractLimiter {
 //    private static final Logger log = org.slf4j.LoggerFactory.getLogger(QPSLimiter.class);
 
 
-    //窗口数组数量
+    /**
+     * slotWindowLength 窗口数组数量
+     */
     private int slotWindowLength;
 
 
@@ -34,35 +39,30 @@ public class QPSLimiter extends AbstractLimiter {
     private final int thresholdIndex;
 
     //头节点 虚拟节点
-    private SlotWindow head = new SlotWindow(true);
+    private SlotWindow head = new SlotWindow(true, new DefaultCounter());
     //尾节点 虚拟节点
-    private SlotWindow tail = new SlotWindow(false);
+    private SlotWindow tail = new SlotWindow(false, new DefaultCounter());
 
     //后台线程，负责超时回收内存
     private final Worker worker;
     //锁
     private final ReentrantLock lock = new ReentrantLock();
 
-    QPSLimiter(int qps, int limit, long timeDuration, long keepaliveTime) {
-        this.qps = qps;
-        this.limit = limit;
-        this.timeDuration = timeDuration;
-        this.keepaliveTime = keepaliveTime;
+    private static final CounterFactory<Counter> COUNTER_FACTORY = new CounterFactory<Counter>();
+
+    private final Class<Counter> couterType;
+
+    QPSLimiter(int qps, int limit, long timeDuration, long keepaliveTime, Class<Counter> counterType) {
         //初始化窗口数组，保证窗口的滑动，数组默认为limit的2倍，减少rebuild的次数
-        this.slotWindowLength = limit << 1;
-        slotWindows = new SlotWindow[slotWindowLength];
-        //默认触发rebuild的阈值为0.75，即访问的时间在数组的后1/4处，触发rebuild
-        this.thresholdIndex = (int) (slotWindows.length * 0.75);
-        //初始化窗口数组及缓存
-        initSlotWindow(limit, timeDuration);
-        this.worker = tryWork();
+        this(qps, limit, timeDuration, limit << 1, keepaliveTime, counterType);
     }
 
-    public QPSLimiter(int qps, int limit, long timeDuration, int slotWindowLength, long keepaliveTime) {
+    public QPSLimiter(int qps, int limit, long timeDuration, int slotWindowLength, long keepaliveTime, Class<Counter> counterType) {
         this.qps = qps;
         this.limit = limit;
         this.timeDuration = timeDuration;
         this.keepaliveTime = keepaliveTime;
+        this.couterType = counterType;
         //初始化窗口数组，保证窗口的滑动，数组长度由用户指定
         this.slotWindowLength = slotWindowLength;
         slotWindows = new SlotWindow[slotWindowLength];
@@ -89,7 +89,7 @@ public class QPSLimiter extends AbstractLimiter {
             long l = 1000 * timeDuration / limit;
             slotWindows = new SlotWindow[slotWindowLength];
             for (int i = 0; i < slotWindows.length; i++) {
-                SlotWindow slotWindow = slotWindows[i] = new SlotWindow(cur);
+                SlotWindow slotWindow = slotWindows[i] = new SlotWindow(cur, COUNTER_FACTORY.newInstance(couterType));
                 slotWindowCache.put(slotWindow.time, slotWindow);
                 cur = cur + l;
                 head.next = slotWindow;
@@ -110,7 +110,7 @@ public class QPSLimiter extends AbstractLimiter {
      * @return
      */
     public boolean tryInc(long curTime) {
-        long cur = curTime==0?System.currentTimeMillis():curTime;
+        long cur = curTime == 0 ? System.currentTimeMillis() : curTime;
         boolean checkOut = false;
         try {
             //自旋，一般循环1-2次
@@ -149,35 +149,6 @@ public class QPSLimiter extends AbstractLimiter {
         }
     }
 
-//    /**
-//     * 尝试增加一次访问次数
-//     * @return
-//     */
-//    public boolean tryInc() {
-//        lock.lock();
-//        try {
-//            long cur = LocalDateTime.now().atZone(ZoneId.systemDefault()).toInstant().getEpochSecond() * 1000;
-//            //判断当前时间是否在数组的后1/4处
-//            if (slotWindows[thresholdIndex].time < cur) {
-//
-//                    //true 重建并移动其中可用的部分链表
-//                    System.out.println("重建并移动部分链表: " + this);
-//                    rebuildAndMoveSlotWindow(cur);
-//                    System.out.println("重建后链表: " + this);
-//            }//判断时间是否已超过现有窗口的值
-//            else if ((cur + timeDuration) > tail.pre.time || cur < head.next.time) {
-//                //如果已经超过，需要重新生成窗口
-//                System.out.println("需要重新生成链表: " + this);
-//
-//                    initSlotWindow(limit, timeDuration);
-//
-//            }
-//            //真正的添加和判断逻辑
-//            return findThenCheckSlot(cur);
-//        } finally {
-//            lock.unlock();
-//        }
-//    }
 
     /**
      * 寻找当前窗口，并判断qps是否已经超过阈值，超过返回false，没有超过，使用cas进行+1操作
@@ -192,7 +163,7 @@ public class QPSLimiter extends AbstractLimiter {
         int limit = this.limit;
         int count = 0;
         for (; ; ) {
-            int oldCount = nSlot.getCount();
+            long oldCount = nSlot.getCount();
             while (limit != 0 && slotWindow != head && count < qps) {
                 count += slotWindow.getCount();
                 slotWindow = slotWindow.pre;
@@ -249,7 +220,7 @@ public class QPSLimiter extends AbstractLimiter {
                 slotWindow = slotWindow.next;
             } else {
                 //余下位置，用新窗口补足
-                SlotWindow newSlot = new SlotWindow(head.time + l);
+                SlotWindow newSlot = new SlotWindow(head.time + l, (Counter) COUNTER_FACTORY.newInstance(couterType));
                 slotWindowCache.put(newSlot.time, newSlot);
                 head.next = newSlot;
                 newSlot.pre = head;
@@ -281,7 +252,7 @@ public class QPSLimiter extends AbstractLimiter {
     private static final class SlotWindow {
 
         //窗口数组
-        private final AtomicInteger slot;
+        private final Counter counter;
 
         private final long time;
 
@@ -290,31 +261,31 @@ public class QPSLimiter extends AbstractLimiter {
         private SlotWindow next;
 
 
-        SlotWindow(long time) {
-            slot = new AtomicInteger(0);
-            this.time = time;
-        }
-
-        SlotWindow(boolean headOrTail) {
-            slot = new AtomicInteger(headOrTail ? 0 : -1);
+        SlotWindow(boolean headOrTail, Counter counter) {
+            this.counter = counter;
             this.time = headOrTail ? 0 : -1;
         }
 
+        public SlotWindow(long time, Counter counter) {
+            this.counter = counter;
+            this.time = time;
+        }
+
         public void increaseSlot() {
-            slot.incrementAndGet();
+            counter.increaseSlot();
         }
 
-        public boolean compareAndInc(int oldValue, int updateValue) {
-            return slot.compareAndSet(oldValue, updateValue);
+        public boolean compareAndInc(long oldValue, long updateValue) {
+            return counter.compareAndInc(oldValue, updateValue);
         }
 
-        public int getCount() {
-            return slot.get();
+        public long getCount() {
+            return counter.getCount();
         }
 
         @Override
         public String toString() {
-            return "SlotWindow{" + "slot=" + slot + ", time=" + time + '}';
+            return "SlotWindow{" + "slot=" + counter + ", time=" + time + '}';
         }
     }
 

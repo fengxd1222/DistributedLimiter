@@ -28,7 +28,7 @@ public class LimiterServer implements CommandLineRunner {
             serverBootstrap.group(parentGroup,childGroup)
                     .channel(group.getChannelClass())
                     .childOption(ChannelOption.SO_KEEPALIVE,true)
-                    .childOption(ChannelOption.TCP_NODELAY,false);
+                    .childOption(ChannelOption.TCP_NODELAY,true);
 //                    .childOption(ChannelOption.RCVBUF_ALLOCATOR, new AdaptiveRecvByteBufAllocator());
 
             EventLoopGroupBuilder.addHandler(serverBootstrap);
