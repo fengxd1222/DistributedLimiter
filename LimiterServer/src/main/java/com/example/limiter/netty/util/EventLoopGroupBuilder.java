@@ -1,9 +1,6 @@
 package com.example.limiter.netty.util;
 
-import com.example.limiter.netty.handler.ClientLimiterEncoder;
-import com.example.limiter.netty.handler.ClientLimiterResponseEncoder;
-import com.example.limiter.netty.handler.KryoSerializerDecoder;
-import com.example.limiter.netty.handler.LimiterHandler;
+import com.example.limiter.netty.handler.*;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelInitializer;
@@ -15,6 +12,7 @@ import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.ServerSocketChannel;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
+import io.netty.handler.codec.LineBasedFrameDecoder;
 import io.netty.handler.logging.LogLevel;
 import io.netty.handler.logging.LoggingHandler;
 
@@ -40,10 +38,12 @@ public class EventLoopGroupBuilder {
 
     public static ChannelHandler[] channelHandlers(){
         return new ChannelHandler[]{
+                new LineBasedFrameDecoder(1000,false,true),
                 new KryoSerializerDecoder(),
                 new LoggingHandler(LogLevel.DEBUG),
                 new ClientLimiterEncoder(),
                 new ClientLimiterResponseEncoder(),
+                new AuthorizationHandler(),
                 new LimiterHandler()
         };
     }

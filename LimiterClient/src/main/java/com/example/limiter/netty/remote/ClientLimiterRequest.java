@@ -10,11 +10,20 @@ public class ClientLimiterRequest {
 
     private String reqId;
 
+    private String token;
+
 
     public ClientLimiterRequest(Object object,String clientId,String reqId) {
         this.object = object;
         this.clientId = clientId;
         this.reqId = reqId;
+    }
+
+    public ClientLimiterRequest(Object object,String clientId,String reqId,String token) {
+        this.object = object;
+        this.clientId = clientId;
+        this.reqId = reqId;
+        this.token = token;
     }
 
     public ClientLimiterRequest() {
@@ -42,5 +51,13 @@ public class ClientLimiterRequest {
 
     public void setReqId(String reqId) {
         this.reqId = reqId;
+    }
+
+    public String getToken() {
+        return token;
+    }
+
+    public void setToken(String token) {
+        this.token = token;
     }
 }

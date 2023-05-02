@@ -6,6 +6,8 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.MessageToByteEncoder;
 import org.slf4j.Logger;
 
+import java.nio.charset.StandardCharsets;
+
 /**
  * @author Feng xud
  */
@@ -15,7 +17,7 @@ public abstract class AbstractKryoSerializerEncoder<T> extends MessageToByteEnco
     protected void encode(ChannelHandlerContext channelHandlerContext, T t, ByteBuf byteBuf) throws Exception {
         log.info("KryoSerializerEncoder "+t);
         byte[] serialize = AbstractKryoPoolSerializerFactory.serialize(t);
-        byteBuf.writeBytes(serialize);
+        byteBuf.writeBytes(serialize).writeBytes("\n".getBytes(StandardCharsets.UTF_8));
         channelHandlerContext.flush();
     }
 }

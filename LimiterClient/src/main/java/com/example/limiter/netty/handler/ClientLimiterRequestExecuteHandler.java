@@ -5,6 +5,7 @@ import com.example.limiter.netty.remote.ClientLimiterRequest;
 import com.example.limiter.netty.remote.ClientLimiterResponse;
 import com.example.limiter.netty.remote.LimiterDefinition;
 import com.example.limiter.netty.util.ClientConstant;
+import com.example.limiter.netty.util.JwtUtils;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
@@ -71,6 +72,7 @@ public class ClientLimiterRequestExecuteHandler extends SimpleChannelInboundHand
         String reqId = UUID.randomUUID().toString();
         ClientLimiterRequest clientLimiterRequest = new ClientLimiterRequest(new LimiterConfig(limiterDefinitions), clientId,reqId);
         put(reqId,new SettableListenableFuture<>());
+        clientLimiterRequest.setToken(JwtUtils.generateToken("0","System"));
         ctx.writeAndFlush(clientLimiterRequest);
         log.info("client send clientLimiterRequest: " + clientLimiterRequest);
         ctx.fireChannelActive();

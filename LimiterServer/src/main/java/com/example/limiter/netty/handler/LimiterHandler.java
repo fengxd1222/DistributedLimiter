@@ -4,10 +4,8 @@ package com.example.limiter.netty.handler;
 import com.example.limiter.limiter.strategy.ChannelReadHolder;
 import com.example.limiter.netty.remote.ClientLimiterRequest;
 import com.example.limiter.netty.remote.ClientLimiterResponse;
-import com.example.limiter.netty.util.ClientConstant;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
-import io.netty.channel.ChannelPipeline;
 import org.slf4j.Logger;
 
 public class LimiterHandler extends ChannelInboundHandlerAdapter {
@@ -25,20 +23,19 @@ public class LimiterHandler extends ChannelInboundHandlerAdapter {
         if (msg instanceof ClientLimiterRequest) {
             ClientLimiterRequest clientLimiterRequest = (ClientLimiterRequest) msg;
             Object object = clientLimiterRequest.getObject();
-            if(ClientConstant.HEARTBEAT_STRING.equals(object)){
-                ctx.writeAndFlush(new ClientLimiterResponse("OK",clientLimiterRequest.getReqId()));
-            }else {
-                Object res = ChannelReadHolder.handle(object, clientLimiterRequest.getClientId());
-                ctx.writeAndFlush(new ClientLimiterResponse(res,clientLimiterRequest.getReqId()));
-                log.info(" res " + res);
-            }
+
+            Object res = ChannelReadHolder.handle(object, clientLimiterRequest.getClientId());
+            ctx.writeAndFlush(new ClientLimiterResponse(res, clientLimiterRequest.getReqId()));
+            log.info(" res " + res);
+
+
         }
         ctx.fireChannelRead(msg);
     }
 
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
-        log.error("exceptionCaught...",cause);
+        log.error("exceptionCaught...", cause);
         ctx.fireExceptionCaught(cause);
     }
 

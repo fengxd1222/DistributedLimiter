@@ -1,5 +1,6 @@
 
 package com.example.limiter.netty.remote;
+
 /**
  * @author feng xud
  */
@@ -8,10 +9,23 @@ public class ClientLimiterResponse {
 
     private String reqId;
 
-    public ClientLimiterResponse(Object object,String reqId) {
+    private String message;
+
+    private int errorCode;
+
+
+    public ClientLimiterResponse(Object object, String reqId) {
         this.object = object;
         this.reqId = reqId;
     }
+
+    public ClientLimiterResponse(Object object, String reqId, String message, int errorCode) {
+        this.object = object;
+        this.reqId = reqId;
+        this.message = message;
+        this.errorCode = errorCode;
+    }
+
 
     public ClientLimiterResponse() {
     }
@@ -31,4 +45,22 @@ public class ClientLimiterResponse {
     public void setObject(Object object) {
         this.object = object;
     }
+
+    public String getMessage() {
+        return message;
+    }
+
+    public void setMessage(String message) {
+        this.message = message;
+    }
+
+    public int getErrorCode() {
+        return errorCode;
+    }
+
+    public void setErrorCode(int errorCode) {
+        this.errorCode = errorCode;
+    }
+
+
 }
